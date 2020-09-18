@@ -16,8 +16,8 @@ struct gasParams{
 struct powerMeterParams{
   int intVolt;
   int intAmp;
-  long lnWatt;
-  long lnkWh;
+  uint32_t lnWatt;
+  uint32_t lnkWh;
 };
 
 gasParams gasSensor_1, gasSensor_2, gasSensor_3;
@@ -58,12 +58,34 @@ void setup()
 
 void loop()
 {
-    process();
+    //process();
+    process_poll();
+//    delay(500);
+}
+
+bool process_poll(){
+//    gasModbusRead(node_1, &gasSensor_1);
+//    gasModbusRead(node_2, &gasSensor_2);
+//    gasModbusRead(node_3, &gasSensor_3);
+    powerMeterModbusRead(node_4, &powerMeter_1);
+    powerMeterModbusRead(node_5, &powerMeter_2);
+    powerMeterModbusRead(node_6, &powerMeter_3);
+
+    sprintf(buffer, "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%ld,%ld,%ld,%1d,%1d,%1d,%1d", 
+    gasSensor_1.intHF, gasSensor_2.intHF, gasSensor_3.intHF,
+    gasSensor_1.intCO, gasSensor_2.intCO, gasSensor_3.intCO,
+    gasSensor_1.intTemp, gasSensor_2.intTemp, gasSensor_3.intTemp,
+    powerMeter_1.intVolt, powerMeter_2.intVolt, powerMeter_3.intVolt,
+    powerMeter_1.intAmp, powerMeter_2.intAmp, powerMeter_3.intAmp,
+    powerMeter_1.lnWatt, powerMeter_2.lnWatt, powerMeter_3.lnWatt,
+    digitalRead(16), digitalRead(17), digitalRead(18), digitalRead(19));
+  
+      Serial.println(buffer);
 }
 
 bool process(){
    if(serverStringComplete){
-    Serial2.println(serverInputString);
+    //Serial2.println(serverInputString);
 
     char *strSplit = strtok(serverInputString, ":,\r\n");
 
@@ -91,7 +113,7 @@ bool process(){
         digitalRead(16), digitalRead(17), digitalRead(18), digitalRead(19));
       
       Serial.println(buffer);
-      Serial2.println(buffer);
+      //Serial2.println(buffer);
       chCount = 0;
       serverStringComplete = false;
       return true;
@@ -135,14 +157,13 @@ void serialEvent() {
 
 bool gasModbusRead(ModbusMaster slaveNode, gasParams *ptr_gasParams){
   uint8_t responseCode;
-  
+  delay(100);
   responseCode = slaveNode.readInputRegisters(0, 3);
 
   if (responseCode == slaveNode.ku8MBSuccess){
       ptr_gasParams->intHF = slaveNode.getResponseBuffer(0);
       ptr_gasParams->intCO = slaveNode.getResponseBuffer(1);
       ptr_gasParams->intTemp = slaveNode.getResponseBuffer(2);
-    delay(10);
     return true;
   }
   return false;
@@ -150,15 +171,15 @@ bool gasModbusRead(ModbusMaster slaveNode, gasParams *ptr_gasParams){
 
 bool powerMeterModbusRead(ModbusMaster slaveNode, powerMeterParams *ptr_powerMeterParams){
   uint8_t responseCode;
-  
-  responseCode = slaveNode.readHoldingRegisters(0, 6);
+  delay(100);
+  responseCode = slaveNode.readInputRegisters(0, 6);
 
     if (responseCode == slaveNode.ku8MBSuccess){
       ptr_powerMeterParams->intVolt = slaveNode.getResponseBuffer(0);
       ptr_powerMeterParams->intAmp = slaveNode.getResponseBuffer(1);
-      ptr_powerMeterParams->lnWatt = (slaveNode.getResponseBuffer(2) << 8) | slaveNode.getResponseBuffer(3);
-      ptr_powerMeterParams->lnkWh = (slaveNode.getResponseBuffer(4) << 8) | slaveNode.getResponseBuffer(5);
-    delay(10);
+      ptr_powerMeterParams->lnWatt = (slaveNode.getResponseBuffer(2) << 16) | slaveNode.getResponseBuffer(3);
+      ptr_powerMeterParams->lnkWh = (slaveNode.getResponseBuffer(4) << 16) | slaveNode.getResponseBuffer(5);
+      
     return true;
   }
   return false;
